@@ -1,2 +1,31 @@
 ---
-# tasks file for sqlserver-role
+- name: Configure repository to deploy SQL Server.
+  yum_repository:
+    name: SQLServer
+    description: SQL Server Repository
+    baseurl: https://packages.microsoft.com/rhel/7/mssql-server/
+    enabled: "yes"
+- name: Configure repository to deploy SQL Tools.
+  yum_repository:
+    name: SQLTools
+    description: SQL Server Tools Repository
+    enabled: "yes"
+    baseurl: https://packages.microsoft.com/rhel/7/prod/
+
+- name: Install packages.
+  environment:
+    ACCEPT_EULA: Y
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - mssql-server
+    - mssql-tools
+    - unixODBC-devel
+- name: Configure The firewall.
+  firewalld:
+    port: 1433/tcp
+    state: enabled
+    permanent: true
+- name: Configure MSSQL Server.
+  command: 'MSSQL_SA_PASSWORD={{ MSSQL_SA_PASSWORD }} /opt/mssql/bin/mssql-conf -n setup accept-eula'

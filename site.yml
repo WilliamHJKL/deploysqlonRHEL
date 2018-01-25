@@ -1,6 +1,7 @@
 ---
-hosts: rhelsql
-  become: yes
+- hosts: rhelsql
   gather_facts: yes
+  become: yes
   roles:
     - common-role
+    - sqlserver-role
