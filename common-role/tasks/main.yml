@@ -1,2 +1,88 @@
 ---
 # tasks file for common-role
+- name: Disable IPv6 with sysctl
+  sysctl: name={{ item }} value=1 state=present
+  with_items:
+    - net.ipv6.conf.all.disable_ipv6
+    - net.ipv6.conf.default.disable_ipv6
+
+- name: Enable IPv6 on localhost with sysctl
+  sysctl: name={{ item }} value=0 state=present
+  with_items:
+    - net.ipv6.conf.lo.disable_ipv6
+
+# Configure ssh
+- name: Copy ssh pubkey
+  authorized_key:
+    user: archi
+    key: "{{ lookup('file', './files/authorized_keys-archi.pub') }}"
+    state: present
+- name: Disable empty passwords for ssh.
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^#?PermitEmptyPasswords"
+    line: "PermitEmptyPasswords no"
+    backup: yes
+- name: Disable root login ssh.
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^#?PermitRootLogin"
+    line: "PermitRootLogin no"
+    backup: yes
+- name: Disable password login
+  lineinfile:
+    dest: /etc/ssh/sshd_config
+    regexp: "^#?PasswordAuthentication"
+    line: "PasswordAuthentication no"
+    backup: yes
+  notify: restart sshd
+
+# Register in satellite
+- name: Install the katello-ca-consumer-latest.noarch.rpm from {{ sat_fqdn }}
+  yum:
+    name: http://{{ sat_fqdn }}/pub/katello-ca-consumer-latest.noarch.rpm
+    state: present
+
+- name: Register to Satellite
+  redhat_subscription:
+    state: present
+    activationkey: "{{ activationkey }}"
+    org_id: "{{ sat_org_id }}"
+
+# Register in Insights
+- stat: path=/etc/redhat-access-insights/.unregistered
+  register: unreg
+
+- name: Register to the Red Hat Access Insights Service
+  command: redhat-access-insights --register creates=/etc/redhat-access-insights/.registered
+  when: unreg.stat.exists == false
+
+# Register in IDM
+- stat: path=/etc/ipa/default.conf
+  register: regipa
+
+- name: Register host  IDM
+  shell: ipa-client-install --domain={{ idm_domain }} --server={{ idm_srv }} --realm={{ idm_realm }} -p admin --password={{ idm_admin_pass }} --mkhomedir --enable-dns-updates --unattended
+  when: regipa.stat.exists == false
+
+# Update and install few packages.
+- name: Install and configure few packages
+  yum: name={{ item }} state=latest
+  with_items:
+    - vim-enhanced
+    - wget
+    - screen
+    - ipa-client
+    - bash-completion
+    - ovirt-guest-agent-common
+    - katello-agent
+    - redhat-access-insights
+    - wget
+  notify: restart goferd
+
+- name: Enable RHEV Guest agent
+  systemd:
+    name: ovirt-guest-agent
+    enabled: yes
+    state: started
+

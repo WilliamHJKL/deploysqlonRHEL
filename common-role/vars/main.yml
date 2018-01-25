@@ -1,2 +1,12 @@
 ---
 # vars file for common-role
+sat_fqdn: sat01.openhybridcloud.io
+admin_user: admin
+admin_pass: "!redhat123#"
+activationkey: RHEL7Server-base
+sat_org_id: Default_Organization
+idm_domain: openhybridcloud.io
+idm_srv: idm01.openhybridcloud.io
+idm_realm: OPENHYBRIDCLOUD.IO
+idm_admin_pass: "123"
+
